@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // - uid: string (owner)
+    // - role: string (admin, advocate, clerk, client)
+    // - email: string
+    //
+    // Collection: cases
+    // - clientUid: string
+    // - assignedAdvocateUid: string
+    // - status: string
+    //
+    // Collection: payments
+    // - clientUid: string
+    // - caseId: string
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isAuthenticated() && getUserData().role == role;
+    }
+
+    function isAdmin() {
+      return hasRole('admin') || 
+             (request.auth.token.email == "joeshady69@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isStaff() {
+      return isAdmin() || hasRole('advocate') || hasRole('clerk');
+    }
+
+    // User Profiles
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (isOwner(uid) || isStaff());
+      allow create: if isAuthenticated() && isOwner(uid) && 
+                    request.resource.data.role in ['client', 'clerk', 'advocate'] &&
+                    (!('role' in request.resource.data) || request.resource.data.role != 'admin' || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(uid) || isAdmin()) &&
+                    (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    // Legal Cases
+    match /cases/{caseId} {
+      allow read: if isAuthenticated() && (isStaff() || resource.data.clientUid == request.auth.uid);
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // Documents (Top-level)
+    match /documents/{docId} {
+      allow read: if isAuthenticated() && (isStaff() || get(/databases/$(database)/documents/cases/$(resource.data.caseId)).data.clientUid == request.auth.uid);
+      allow create: if isStaff();
+      allow update: if isStaff();
+      allow delete: if isAdmin();
+    }
+
+    // Case Activities
+    match /case_activities/{activityId} {
+      allow read: if isAuthenticated() && (isStaff() || get(/databases/$(database)/documents/cases/$(resource.data.caseId)).data.clientUid == request.auth.uid);
+      allow create: if isAuthenticated(); // Allow system/users to log activities
+      allow update, delete: if isAdmin();
+    }
+
+    // Payments
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (isStaff() || resource.data.clientUid == request.auth.uid);
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
+    }
+
+    // Document Templates
+    match /templates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isStaff();
+    }
+
+    // Activity Logs (Firm-wide)
+    match /activity_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated();
+    }
+  }
+}

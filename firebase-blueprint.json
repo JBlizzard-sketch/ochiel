@@ -1,0 +1,93 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Extended user information for advocates and clients.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "advocate", "clerk", "client"] },
+        "phoneNumber": { "type": "string" },
+        "firmName": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "LegalCase": {
+      "title": "Legal Case",
+      "description": "A case managed by the firm.",
+      "type": "object",
+      "properties": {
+        "caseNumber": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "pending_payment", "active", "closed", "archived"] },
+        "clientUid": { "type": "string" },
+        "assignedAdvocateUid": { "type": "string" },
+        "practiceArea": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "status", "clientUid"]
+    },
+    "LegalDocument": {
+      "title": "Legal Document",
+      "description": "A document associated with a case.",
+      "type": "object",
+      "properties": {
+        "caseId": { "type": "string" },
+        "title": { "type": "string" },
+        "content": { "type": "string", "description": "Markdown or text content" },
+        "type": { "type": "string", "enum": ["affidavit", "lease", "nda", "sale_agreement", "other"] },
+        "status": { "type": "string", "enum": ["draft", "review", "signed", "filed"] },
+        "createdByUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["caseId", "title", "type", "status"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "PesaPal payment record.",
+      "type": "object",
+      "properties": {
+        "caseId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed", "failed"] },
+        "pesapalTrackingId": { "type": "string" },
+        "pesapalMerchantReference": { "type": "string" },
+        "clientUid": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["caseId", "amount", "status", "clientUid"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "UserProfile",
+      "description": "User profile documents."
+    },
+    "/cases/{caseId}": {
+      "schema": "LegalCase",
+      "description": "Legal case documents."
+    },
+    "/cases/{caseId}/documents/{docId}": {
+      "schema": "LegalDocument",
+      "description": "Documents within a case."
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Payment records."
+    },
+    "/templates/{templateId}": {
+      "schema": "DocumentTemplate",
+      "description": "Custom legal document templates."
+    },
+    "/activity_logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "User activity logs for auditing."
+    }
+  }
+}
